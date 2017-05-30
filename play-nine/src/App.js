@@ -5,6 +5,23 @@ import './bootstrap.css';
 var FontAwesome = require('react-fontawesome');
 var _ = require('lodash');
 
+var possibleCombinationSum = function(arr, n) {
+  if (arr.indexOf(n) >= 0) { return true; }
+  if (arr[0] > n) { return false; }
+  if (arr[arr.length - 1] > n) {
+    arr.pop();
+    return possibleCombinationSum(arr, n);
+  }
+  var listSize = arr.length, combinationsCount = (1 << listSize)
+  for (var i = 1; i < combinationsCount ; i++ ) {
+    var combinationSum = 0;
+    for (var j=0 ; j < listSize ; j++) {
+      if (i & (1 << j)) { combinationSum += arr[j]; }
+    }
+    if (n === combinationSum) { return true; }
+  }
+  return false;
+};
 
 const Stars = (props) => {
   return(
@@ -20,7 +37,8 @@ const Button = (props) => {
   let button;
   switch(props.answerIsCorrect) {
     case true:
-      button = <button className="btn btn-success">
+      button = <button className="btn btn-success" 
+                onClick={props.acceptAnswer}>
                 <FontAwesome className='fa fa-check'/>
                </button>;
       break;
@@ -37,12 +55,20 @@ const Button = (props) => {
                </button>;
       break;
   }
+
   return(
-    <div className="col-2">
+    <div className="col-2 text-center">
       {button}
+      <br />
+      <br />
+      <button className="btn btn-warning btn-sn"
+              onClick={props.redraw}
+              disabled={props.redraws === 0}>
+        <FontAwesome className='fa-refresh'/>{props.redraws}
+      </button>
     </div>
   );
-}
+};
 
 const Answer = (props) => {
   return(
@@ -59,6 +85,9 @@ const Answer = (props) => {
 
 const Numbers = (props) => {
   const numberClassName = (number) => {
+    if(props.usedNumbers.indexOf(number) >= 0) {
+      return 'used';
+    }
     if (props.selectedNumbers.indexOf(number) >= 0) {
       return 'selected';
     }
@@ -78,12 +107,29 @@ const Numbers = (props) => {
 };
 Numbers.list = _.range(1,10); //loadash functions
 
+const DoneFrame = (props) => {
+  return (
+    <div className="text-center">
+      <h2>{props.doneStatus}</h2>
+      <button className="btn btn-primary" onClick={props.resetGame}>
+        Play Again
+      </button>
+    </div>
+  );
+}
+
 class Game extends Component {
-  state = {
+  static randomNumber = () => 1 + Math.floor(Math.random()*9);
+  static initialState = () => ({
     selectedNumbers: [],
-    randomNumberOfStars: 1 + Math.floor(Math.random()*9),
+    randomNumberOfStars: Game.randomNumber(),
     answerIsCorrect: null,
-  };
+    usedNumbers: [],
+    redraws: 5,
+    doneStatus: null,
+  });
+
+  state = Game.initialState();
 
   selectNumber = (clickedNumber) =>{
     if(this.state.selectedNumbers.indexOf(clickedNumber) >= 0) {return;}
@@ -107,9 +153,51 @@ class Game extends Component {
     }));
   };
 
+  acceptAnswer = () => {
+    this.setState(prevState => ({
+      usedNumbers: prevState.usedNumbers.concat(prevState.selectedNumbers),
+      selectedNumbers: [],
+      answerIsCorrect: null,
+      randomNumberOfStars: Game.randomNumber(),
+    }), this.updateDoneStatus);
+
+  };
+
+  redraw = () => {
+    if(this.state.redraws === 0) { return; }
+    this.setState((prevState) => ({
+      randomNumberOfStars: Game.randomNumber(),
+      answerIsCorrect: null,
+      selectedNumbers: [],
+      redraws: prevState.redraws-1,
+    }), this.updateDoneStatus);
+  };
+
+  possibleSolutions = ({randomNumberOfStars, usedNumbers}) => {
+    const possibleNumbers = _.range(1,10).filter(number => 
+      usedNumbers.indexOf(number) === -1
+    );
+
+    return possibleCombinationSum(possibleNumbers, randomNumberOfStars);
+  };
+
+  updateDoneStatus = () => {
+    this.setState(prevState => {
+      if(prevState.usedNumbers.length === 9){
+        return { doneStatus: 'Done. Nice!'};
+      }
+      if(prevState.redraws === 0 && !this.possibleSolutions(prevState)) {
+        return { doneStatus: 'Game Over!'};  
+      }
+    });
+  };
+
+  resetGame = () => this.setState(Game.initialState());
+
   render(){
     // reducing calls using this.state,selectedNumbers, ...
-    const { selectedNumbers, randomNumberOfStars, answerIsCorrect } = this.state;
+    const { selectedNumbers, randomNumberOfStars, answerIsCorrect,
+            usedNumbers, redraws, doneStatus } = this.state;
     return(
       <div className="App">
         <div className="App-header">
@@ -121,13 +209,21 @@ class Game extends Component {
           <Stars numberOfStars={randomNumberOfStars}/>
           <Button selectedNumbers={selectedNumbers}
                   checkAnswer={this.checkAnswer}
-                  answerIsCorrect={answerIsCorrect}/>
+                  answerIsCorrect={answerIsCorrect}
+                  acceptAnswer={this.acceptAnswer}
+                  redraw={this.redraw}
+                  redraws={redraws}/>
           <Answer selectedNumbers={selectedNumbers}
                   deSelectNumber={this.deSelectNumber}/>          
         </div>
         <br />
-        <Numbers selectedNumbers={selectedNumbers}
-                 selectNumber={this.selectNumber}/>
+        { doneStatus ?
+          <DoneFrame doneStatus={doneStatus}
+                     resetGame={this.resetGame}/> :
+          <Numbers selectedNumbers={selectedNumbers}
+                   selectNumber={this.selectNumber}
+                   usedNumbers={usedNumbers}/>
+        }
       </div>
     );
   }
