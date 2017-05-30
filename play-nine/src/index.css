@@ -9,7 +9,7 @@ body {
   font-size: 24px;
 }
 
-.number{
+span{
   display: inline-block;
   margin: 0.5em;
   text-align: center;
