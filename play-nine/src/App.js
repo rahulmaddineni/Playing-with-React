@@ -17,9 +17,29 @@ const Stars = (props) => {
 }
 
 const Button = (props) => {
+  let button;
+  switch(props.answerIsCorrect) {
+    case true:
+      button = <button className="btn btn-success">
+                <FontAwesome className='fa fa-check'/>
+               </button>;
+      break;
+    case false:
+      button = <button className="btn btn-danger">
+                <FontAwesome className='fa fa-times'/>
+               </button>;
+      break;
+    default:
+      button = <button className="btn" 
+                onClick={props.checkAnswer}
+                disabled={props.selectedNumbers.length === 0}>
+                =
+               </button>;
+      break;
+  }
   return(
     <div className="col-2">
-    <button className="btn" disabled={props.selectedNumbers.length === 0}>=</button>
+      {button}
     </div>
   );
 }
@@ -62,23 +82,34 @@ class Game extends Component {
   state = {
     selectedNumbers: [],
     randomNumberOfStars: 1 + Math.floor(Math.random()*9),
+    answerIsCorrect: null,
   };
 
   selectNumber = (clickedNumber) =>{
     if(this.state.selectedNumbers.indexOf(clickedNumber) >= 0) {return;}
     this.setState(prevState => ({
+      answerIsCorrect: null,
       selectedNumbers : prevState.selectedNumbers.concat(clickedNumber)
     }));
   }
 
   deSelectNumber = (clickedNumber) =>{
     this.setState(prevState => ({
+      answerIsCorrect: null,
       selectedNumbers : prevState.selectedNumbers.filter(number => number !== clickedNumber)
     }));
   }
+
+  checkAnswer = () => {
+    this.setState(prevState => ({
+        answerIsCorrect: prevState.randomNumberOfStars ===
+          prevState.selectedNumbers.reduce((acc,n) => acc+n, 0)
+    }));
+  };
+
   render(){
     // reducing calls using this.state,selectedNumbers, ...
-    const { selectedNumbers, randomNumberOfStars } = this.state;
+    const { selectedNumbers, randomNumberOfStars, answerIsCorrect } = this.state;
     return(
       <div className="App">
         <div className="App-header">
@@ -88,7 +119,9 @@ class Game extends Component {
         <br />
         <div className="row">
           <Stars numberOfStars={randomNumberOfStars}/>
-          <Button selectedNumbers={selectedNumbers}/>
+          <Button selectedNumbers={selectedNumbers}
+                  checkAnswer={this.checkAnswer}
+                  answerIsCorrect={answerIsCorrect}/>
           <Answer selectedNumbers={selectedNumbers}
                   deSelectNumber={this.deSelectNumber}/>          
         </div>
